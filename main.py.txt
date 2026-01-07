@@ -1,0 +1,84 @@
+import pandas as pd
+import yfinance as yf
+import matplotlib.pyplot as plt
+import datetime
+
+# ---------------------------------------------------------
+# Project: Automated Moving Average Crossover Strategy
+# Author: Mohammad Jebali
+# Description: 
+#   This script fetches historical data for EUR/USD, calculates 
+#   Simple Moving Averages (SMA 50 & SMA 200), and identifies 
+#   'Golden Cross' (Buy) and 'Death Cross' (Sell) signals.
+# ---------------------------------------------------------
+
+def fetch_data(symbol, start_date, end_date):
+    """
+    Fetches historical financial data using yfinance.
+    """
+    print(f"Fetching data for {symbol}...")
+    data = yf.download(symbol, start=start_date, end=end_date)
+    return data
+
+def calculate_indicators(data):
+    """
+    Calculates Technical Indicators (SMA 50 & SMA 200).
+    """
+    # Calculate 50-day and 200-day Simple Moving Averages
+    data['SMA_50'] = data['Close'].rolling(window=50).mean()
+    data['SMA_200'] = data['Close'].rolling(window=200).mean()
+    return data
+
+def generate_signals(data):
+    """
+    Generates Buy/Sell signals based on Crossover strategy.
+    """
+    data['Signal'] = 0
+    # Create a signal when SMA_50 crosses above SMA_200
+    data.loc[data['SMA_50'] > data['SMA_200'], 'Signal'] = 1 
+    data['Position'] = data['Signal'].diff() # 1 for Buy, -1 for Sell
+    return data
+
+def plot_strategy(data, symbol):
+    """
+    Visualizes the price, SMAs, and Trade Signals.
+    """
+    plt.figure(figsize=(14, 7))
+    plt.plot(data['Close'], label='Price', alpha=0.5)
+    plt.plot(data['SMA_50'], label='SMA 50', color='orange', linestyle='--')
+    plt.plot(data['SMA_200'], label='SMA 200'], color='blue', linestyle='--')
+
+    # Plot Buy Signals
+    plt.plot(data[data['Position'] == 1].index, 
+             data['SMA_50'][data['Position'] == 1], 
+             '^', markersize=10, color='green', lw=0, label='Buy Signal (Golden Cross)')
+    
+    # Plot Sell Signals
+    plt.plot(data[data['Position'] == -1].index, 
+             data['SMA_50'][data['Position'] == -1], 
+             'v', markersize=10, color='red', lw=0, label='Sell Signal (Death Cross)')
+
+    plt.title(f'{symbol} - SMA Crossover Strategy Analysis')
+    plt.xlabel('Date')
+    plt.ylabel('Price')
+    plt.legend()
+    plt.grid()
+    plt.show()
+
+# --- Main Execution ---
+if __name__ == "__main__":
+    # Parameters
+    SYMBOL = "EURUSD=X" # Yahoo Finance ticker for EUR/USD
+    START = (datetime.date.today() - datetime.timedelta(days=365*2)).strftime("%Y-%m-%d") # Last 2 years
+    END = datetime.date.today().strftime("%Y-%m-%d")
+
+    # Run Strategy
+    df = fetch_data(SYMBOL, START, END)
+    df = calculate_indicators(df)
+    df = generate_signals(df)
+    
+    # Show last few rows of analysis
+    print(df[['Close', 'SMA_50', 'SMA_200', 'Signal']].tail())
+    
+    # Plot results
+    plot_strategy(df, SYMBOL)
